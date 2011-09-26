@@ -4,7 +4,7 @@
 
 ;; Author:      Ulf Jasper <ulf.jasper@web.de>
 ;; Created:     22. Sep. 2011
-;; Keywords:    demo
+;; Keywords:    demo, svg, clock
 
 ;; This file is part of GNU Emacs.
 
@@ -40,11 +40,14 @@
 
 ;;; History:
 
+;; 0.2 (2011-09-26)
+;;     - Added automatic resizing. One clock fits all.
+
 ;; 0.1 (2011-09-22)
 ;;     - Initial release.
 
 ;;; Code:
-(defconst svg-clock-version "0.1" "Version number of `svg-clock'.")
+(defconst svg-clock-version "0.2" "Version number of `svg-clock'.")
 
 (require 'image-mode)
 
@@ -52,9 +55,12 @@
   "svg-clock"
   :group 'applications)
 
-(defcustom svg-clock-size 250
-  "Size (width and height) of the clock, in pixels."
-  :type 'integer
+(defcustom svg-clock-size t
+  "Size (width and height) of the clock.
+Either an integer which gives the clock size in pixels, or t
+which makes the clock fit to its window automatically."
+  :type '(choice (integer :tag "Fixed Size" :value 250)
+                 (const :tag "Fit to window" t))
   :group 'svg-clock)
 
 (defvar svg-clock-timer nil)
@@ -132,7 +138,6 @@
           <use xlink:href=\"#minute-ticks-b\"
                transform=\"rotate(180, 50, 50)\" />
 
-
           <use xlink:href=\"#hand-second\"
                transform=\"rotate(%SECOND%, 50, 50)\">
           </use>
@@ -143,7 +148,6 @@
                transform=\"rotate(%HOUR%, 50, 50)\">
           </use>
 
-
           <circle cx=\"50\" cy=\"50\" r=\"3\" fill=\"%FG%\"/>
         </g>
     </defs>
@@ -151,6 +155,9 @@
          transform=\"scale(%SCALE%, %SCALE%)\"/>
 </svg>"
   "The template for drawing the `svg-clock'.")
+
+(defvar svg-clock--actual-size 100
+  "Actual size of the svg clock.")
 
 (defun svg-clock-color-to-hex (colour)
   "Return hex representation of COLOUR."
@@ -178,31 +185,91 @@ TIME must have the form (SECOND MINUTE HOUR ...), as returned by `decode-time'."
 
       (svg-clock-replace "%BG%" bg-colour)
       (svg-clock-replace "%FG%" fg-colour)
-      (svg-clock-replace "%HOUR%" (format "%f" (+ (* hours 30) (/ minutes 2.0))))
-      (svg-clock-replace "%MINUTE%" (format "%f" (+ (* minutes 6)
-                                                   (/ seconds 10.0))))
+      (svg-clock-replace "%HOUR%"
+                         (format "%f" (+ (* hours 30) (/ minutes 2.0))))
+      (svg-clock-replace "%MINUTE%"
+                         (format "%f" (+ (* minutes 6) (/ seconds 10.0))))
       (svg-clock-replace "%SECOND%" (format "%f" (* seconds 6)))
-      (svg-clock-replace "%SIZE%" (format "%d" svg-clock-size))
-      (svg-clock-replace "%SCALE%" (format "%f" (/ svg-clock-size 100.0)))
+      (svg-clock-replace "%SIZE%" (format "%d" svg-clock--actual-size))
+      (svg-clock-replace "%SCALE%"
+                         (format "%f" (/ svg-clock--actual-size 100.0)))
+
       (image-toggle-display-image))))
 
 (defun svg-clock-update ()
   "Update the clock."
+  (if (integerp svg-clock-size)
+      (setq svg-clock--actual-size svg-clock-size)
+    (svg-clock-fit-window))
   (svg-clock-do-update (decode-time (current-time))))
+
+(defun svg-clock-set-size (size &optional perform-update)
+  "Set the SIZE of the clock and optionally PERFORM-UPDATE."
+  (setq svg-clock--actual-size size)
+  (if perform-update
+      (svg-clock-update)))
+
+(defun svg-clock-grow ()
+  "Enlarge the size of the svg clock by 10 pixesl.
+If `svg-clock-size' is t this command has no effect."
+  (interactive)
+  (svg-clock-set-size (+ 10 svg-clock--actual-size) t))
+
+(defun svg-clock-shrink ()
+  "Reduce the size of the svg clock by 10 pixesl.
+If `svg-clock-size' is t this command has no effect."
+  (interactive)
+  (svg-clock-set-size (max 10 (- svg-clock--actual-size 10)) t))
+
+(defun svg-clock-fit-window (&optional perform-update)
+  "Make the svg clock fill the whole window it is displayed in.
+Optionally PERFORM-UPDATE immediately."
+  (interactive)
+  (let  ((clock-win (get-buffer-window "*clock*")))
+    (if clock-win
+        (let* ((coords (window-inside-pixel-edges clock-win))
+               (width (- (nth 2 coords) (nth 0 coords)))
+               (height (- (nth 3 coords) (nth 1 coords))))
+          (svg-clock-set-size (min width height) perform-update)))))
+
+(defun svg-clock-stop ()
+  "Stop the svg clock and hide it."
+  (interactive)
+  (if (not svg-clock-timer)
+      (message "svg-clock is not running.")
+    (cancel-timer svg-clock-timer)
+    (setq svg-clock-timer nil)
+    (replace-buffer-in-windows "*clock*")
+    (message "Clock stopped")))
+
+(defun svg-clock-start ()
+  "Start the svg clock."
+  (if svg-clock-timer
+      (message "svg-clock is running already")
+    (switch-to-buffer (get-buffer-create "*clock*"))
+    (unless (integerp svg-clock-size)
+      (svg-clock-fit-window))
+    (setq svg-clock-timer
+          (run-with-timer 0 1 'svg-clock-update))
+    (svg-clock-mode)
+    (message "Clock started")))
+
+(define-derived-mode svg-clock-mode fundamental-mode "svg clock"
+  "Major mode for the svg-clock buffer.
+\\{svg-clock-mode-map}")
+
+(define-key svg-clock-mode-map [?+] 'svg-clock-grow)
+(define-key svg-clock-mode-map [?-] 'svg-clock-shrink)
+(define-key svg-clock-mode-map [?q] 'svg-clock-stop)
+(define-key svg-clock-mode-map [?f] 'svg-clock-fit-window)
 
 ;;;###autoload
 (defun svg-clock ()
   "Start/stop the svg clock."
   (interactive)
   (if svg-clock-timer
-      (progn
-        (cancel-timer svg-clock-timer)
-        (setq svg-clock-timer nil)
-        (message "Clock stopped"))
-    (switch-to-buffer (get-buffer-create "*clock*"))
-    (setq svg-clock-timer
-          (run-with-timer 0 1 'svg-clock-update))
-    (message "Clock started")))
+      (svg-clock-stop)
+    (svg-clock-start)))
 
 (provide 'svg-clock)
 
