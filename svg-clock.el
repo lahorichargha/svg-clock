@@ -5,6 +5,7 @@
 ;; Author:      Ulf Jasper <ulf.jasper@web.de>
 ;; Created:     22. Sep. 2011
 ;; Keywords:    demo, svg, clock
+;; Version:     0.2
 
 ;; This file is part of GNU Emacs.
 
