@@ -5,7 +5,7 @@
 ;; Author:      Ulf Jasper <ulf.jasper@web.de>
 ;; Created:     22. Sep. 2011
 ;; Keywords:    demo, svg, clock
-;; Version:     0.2
+;; Version:     0.3
 
 ;; This file is part of GNU Emacs.
 
@@ -41,6 +41,10 @@
 
 ;;; History:
 
+;; 0.3 (2012-12-13)
+;;     - Disable buffer undo in svg-clock buffer.  Thanks to Andrew
+;;       Kirkpatrick.
+
 ;; 0.2 (2011-09-26)
 ;;     - Added automatic resizing. One clock fits all.
 
@@ -48,7 +52,7 @@
 ;;     - Initial release.
 
 ;;; Code:
-(defconst svg-clock-version "0.2" "Version number of `svg-clock'.")
+(defconst svg-clock-version "0.3" "Version number of `svg-clock'.")
 
 (require 'image-mode)
 
@@ -257,7 +261,8 @@ Optionally PERFORM-UPDATE immediately."
 
 (define-derived-mode svg-clock-mode fundamental-mode "svg clock"
   "Major mode for the svg-clock buffer.
-\\{svg-clock-mode-map}")
+\\{svg-clock-mode-map}"
+  (buffer-disable-undo))
 
 (define-key svg-clock-mode-map [?+] 'svg-clock-grow)
 (define-key svg-clock-mode-map [?-] 'svg-clock-shrink)
