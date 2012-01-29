@@ -5,7 +5,7 @@
 ;; Author:      Ulf Jasper <ulf.jasper@web.de>
 ;; Created:     22. Sep. 2011
 ;; Keywords:    demo, svg, clock
-;; Version:     0.3
+;; Version:     0.4
 
 ;; This file is part of GNU Emacs.
 
@@ -39,20 +39,8 @@
 
 ;; ======================================================================
 
-;;; History:
-
-;; 0.3 (2012-12-13)
-;;     - Disable buffer undo in svg-clock buffer.  Thanks to Andrew
-;;       Kirkpatrick.
-
-;; 0.2 (2011-09-26)
-;;     - Added automatic resizing. One clock fits all.
-
-;; 0.1 (2011-09-22)
-;;     - Initial release.
-
 ;;; Code:
-(defconst svg-clock-version "0.3" "Version number of `svg-clock'.")
+(defconst svg-clock-version "0.4" "Version number of `svg-clock'.")
 
 (require 'image-mode)
 
@@ -167,7 +155,7 @@ which makes the clock fit to its window automatically."
 (defun svg-clock-color-to-hex (colour)
   "Return hex representation of COLOUR."
   (let ((values (color-values colour)))
-    (format "#%04x%04x%04x" (nth 0 values) (nth 1 values) (nth 2 values))))
+    (format "#%02x%02x%02x" (nth 0 values) (nth 1 values) (nth 2 values))))
 
 (defun svg-clock-replace (from to)
   "Replace all occurrences of FROM with TO."
@@ -259,15 +247,18 @@ Optionally PERFORM-UPDATE immediately."
     (svg-clock-mode)
     (message "Clock started")))
 
+(defvar svg-clock-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [?+] 'svg-clock-grow)
+    (define-key map [?-] 'svg-clock-shrink)
+    (define-key map [?q] 'svg-clock-stop)
+    (define-key map [?f] 'svg-clock-fit-window)
+    map))
+
 (define-derived-mode svg-clock-mode fundamental-mode "svg clock"
   "Major mode for the svg-clock buffer.
 \\{svg-clock-mode-map}"
   (buffer-disable-undo))
-
-(define-key svg-clock-mode-map [?+] 'svg-clock-grow)
-(define-key svg-clock-mode-map [?-] 'svg-clock-shrink)
-(define-key svg-clock-mode-map [?q] 'svg-clock-stop)
-(define-key svg-clock-mode-map [?f] 'svg-clock-fit-window)
 
 ;;;###autoload
 (defun svg-clock ()
